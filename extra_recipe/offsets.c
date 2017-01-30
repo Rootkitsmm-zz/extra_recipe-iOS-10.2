@@ -3,9 +3,15 @@
 #include <strings.h>
 #include <sys/utsname.h>
 
-#include "init_offsets.h"
+#include "offsets.h"
 
-void init() {
+uint64_t off1;
+uint64_t off2;//OSData::getMetaClass
+uint64_t off3;//OSSerializer::serialize
+uint64_t off4;//RET
+uint64_t off5;//uuid_copy
+
+void load_offsets() {
     struct utsname u = { 0 };
     uname(&u);
 

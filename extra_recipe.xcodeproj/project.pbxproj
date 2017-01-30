@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1AF164A71E3FF0A80062247E /* offsets.c in Sources */ = {isa = PBXBuildFile; fileRef = 1AF164A51E3FF0A80062247E /* offsets.c */; };
 		B0E5165B1E39459300CE4C47 /* README in Resources */ = {isa = PBXBuildFile; fileRef = B0E5165A1E39459300CE4C47 /* README */; };
 		B0F37BC11E361EAE00179E85 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F37BC01E361EAE00179E85 /* AppDelegate.swift */; };
 		B0F37BC31E361EAE00179E85 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F37BC21E361EAE00179E85 /* ViewController.swift */; };
@@ -18,6 +19,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		1AF164A41E3FF09A0062247E /* offsets.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = offsets.h; sourceTree = "<group>"; };
+		1AF164A51E3FF0A80062247E /* offsets.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = offsets.c; sourceTree = "<group>"; };
 		B0E5165A1E39459300CE4C47 /* README */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README; sourceTree = "<group>"; };
 		B0F37BBD1E361EAE00179E85 /* extra_recipe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = extra_recipe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B0F37BC01E361EAE00179E85 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -68,8 +71,10 @@
 				B0F37BC91E361EAE00179E85 /* LaunchScreen.storyboard */,
 				B0F37BCC1E361EAE00179E85 /* Info.plist */,
 				B0F37BD31E361FCC00179E85 /* jailbreak.c */,
+				1AF164A41E3FF09A0062247E /* offsets.h */,
 				B0F37BDD1E37AC0700179E85 /* load_regs_and_crash.s */,
 				B0F37BD21E361FCC00179E85 /* extra_recipe-Bridging-Header.h */,
+				1AF164A51E3FF0A80062247E /* offsets.c */,
 				B0E5165A1E39459300CE4C47 /* README */,
 			);
 			path = extra_recipe;
@@ -107,7 +112,7 @@
 				TargetAttributes = {
 					B0F37BBC1E361EAD00179E85 = {
 						CreatedOnToolsVersion = 8.1;
-						DevelopmentTeam = 854G7LGZ42;
+						DevelopmentTeam = F578VDT483;
 						LastSwiftMigration = 0810;
 						ProvisioningStyle = Automatic;
 					};
@@ -151,6 +156,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B0F37BDE1E37AC0700179E85 /* load_regs_and_crash.s in Sources */,
+				1AF164A71E3FF0A80062247E /* offsets.c in Sources */,
 				B0F37BD51E361FCC00179E85 /* jailbreak.c in Sources */,
 				B0F37BC31E361EAE00179E85 /* ViewController.swift in Sources */,
 				B0F37BC11E361EAE00179E85 /* AppDelegate.swift in Sources */,
@@ -284,7 +290,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				DEVELOPMENT_TEAM = 854G7LGZ42;
+				DEVELOPMENT_TEAM = F578VDT483;
 				INFOPLIST_FILE = extra_recipe/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				OTHER_LDFLAGS = (
@@ -306,7 +312,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				DEVELOPMENT_TEAM = 854G7LGZ42;
+				DEVELOPMENT_TEAM = F578VDT483;
 				INFOPLIST_FILE = extra_recipe/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				OTHER_LDFLAGS = (

@@ -15,7 +15,7 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 
-#include "init_offsets.h"
+#include "offsets.h"
 
 // IOKit stuff
 
@@ -596,7 +596,7 @@ uint64_t prepare_kernel_rw() {
 }
 
 int jb_go() {
-    init();
+    load_offsets();
     uint64_t kernel_base = prepare_kernel_rw();
     uint64_t val = rk64(kernel_base);
     printf("read from kernel memory: 0x%016llx\n", val);
