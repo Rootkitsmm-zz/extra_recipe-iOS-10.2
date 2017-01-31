@@ -14,7 +14,7 @@
 		B0F37BC61E361EAE00179E85 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B0F37BC41E361EAE00179E85 /* Main.storyboard */; };
 		B0F37BC81E361EAE00179E85 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B0F37BC71E361EAE00179E85 /* Assets.xcassets */; };
 		B0F37BCB1E361EAE00179E85 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B0F37BC91E361EAE00179E85 /* LaunchScreen.storyboard */; };
-		B0F37BD51E361FCC00179E85 /* jailbreak.m in Sources */ = {isa = PBXBuildFile; fileRef = B0F37BD31E361FCC00179E85 /* jailbreak.m */; };
+		B0F37BD51E361FCC00179E85 /* jailbreak.c in Sources */ = {isa = PBXBuildFile; fileRef = B0F37BD31E361FCC00179E85 /* jailbreak.c */; };
 		B0F37BDE1E37AC0700179E85 /* load_regs_and_crash.s in Sources */ = {isa = PBXBuildFile; fileRef = B0F37BDD1E37AC0700179E85 /* load_regs_and_crash.s */; };
 /* End PBXBuildFile section */
 
@@ -30,7 +30,7 @@
 		B0F37BCA1E361EAE00179E85 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		B0F37BCC1E361EAE00179E85 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B0F37BD21E361FCC00179E85 /* extra_recipe-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "extra_recipe-Bridging-Header.h"; sourceTree = "<group>"; };
-		B0F37BD31E361FCC00179E85 /* jailbreak.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = jailbreak.m; sourceTree = "<group>"; };
+		B0F37BD31E361FCC00179E85 /* jailbreak.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = jailbreak.c; sourceTree = "<group>"; };
 		B0F37BDD1E37AC0700179E85 /* load_regs_and_crash.s */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.asm; path = load_regs_and_crash.s; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -70,7 +70,7 @@
 				B0F37BC71E361EAE00179E85 /* Assets.xcassets */,
 				B0F37BC91E361EAE00179E85 /* LaunchScreen.storyboard */,
 				B0F37BCC1E361EAE00179E85 /* Info.plist */,
-				B0F37BD31E361FCC00179E85 /* jailbreak.m */,
+				B0F37BD31E361FCC00179E85 /* jailbreak.c */,
 				1AF164A41E3FF09A0062247E /* offsets.h */,
 				B0F37BDD1E37AC0700179E85 /* load_regs_and_crash.s */,
 				B0F37BD21E361FCC00179E85 /* extra_recipe-Bridging-Header.h */,
@@ -157,7 +157,7 @@
 			files = (
 				B0F37BDE1E37AC0700179E85 /* load_regs_and_crash.s in Sources */,
 				1AF164A71E3FF0A80062247E /* offsets.c in Sources */,
-				B0F37BD51E361FCC00179E85 /* jailbreak.m in Sources */,
+				B0F37BD51E361FCC00179E85 /* jailbreak.c in Sources */,
 				B0F37BC31E361EAE00179E85 /* ViewController.swift in Sources */,
 				B0F37BC11E361EAE00179E85 /* AppDelegate.swift in Sources */,
 			);
